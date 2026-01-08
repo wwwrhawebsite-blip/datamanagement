@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Silver Leafs | Business Suite Elite</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #0f172a; --accent: #3b82f6; --success: #10b981; --danger: #ef4444;
+            --sidebar-bg: #0b0f1a; --bg: #f8fafc; --border: #e2e8f0; --card: #ffffff; --text: #0f172a;
+            --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #020617; --card: #0f172a; --border: #1e293b; --text: #f8fafc;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 0.3s, color 0.3s, transform 0.2s var(--spring); }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+        /* Navigation */
+        aside { width: 260px; background: var(--sidebar-bg); color: white; position: fixed; height: 100vh; display: flex; flex-direction: column; padding: 35px 20px; z-index: 1000; }
+        .mobile-header { display: none; background: var(--sidebar-bg); color: white; padding: 15px 20px; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1500; }
+        .mobile-header h1 { font-family: 'Playfair Display'; font-size: 20px; }
+        .mobile-nav { display: none; position: fixed; bottom: 0; width: 100%; height: 70px; background: var(--card); border-top: 1px solid var(--border); z-index: 2000; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); }
+
+        @media (max-width: 900px) {
+            aside { display: none; }
+            .mobile-header, .mobile-nav { display: flex; }
+            main { margin-left: 0 !important; padding: 20px !important; padding-bottom: 100px !important; }
+        }
+
+        main { margin-left: 260px; padding: 40px; }
+        .logo { font-family: 'Playfair Display'; font-size: 28px; margin-bottom: 50px; text-align: center; color: #fff; }
+
+        /* Profile Hub */
+        .profile-hub { position: relative; margin-top: auto; }
+        .profile-btn { padding: 12px; background: rgba(255,255,255,0.05); border-radius: 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; color: white; }
+        .profile-popover {
+            position: absolute; bottom: 80px; left: 0; width: 220px; background: var(--card);
+            border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            border: 1px solid var(--border); display: none; flex-direction: column; overflow: hidden; z-index: 3000;
+            animation: popIn 0.3s var(--spring);
+        }
+        @media (max-width: 900px) { .profile-popover { bottom: auto; top: 60px; left: auto; right: 0; } }
+        .pop-item { padding: 15px 20px; display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); }
+        .pop-item:hover { background: rgba(59, 130, 246, 0.1); }
+
+        /* UI Elements */
+        .card { background: var(--card); border-radius: 24px; padding: 25px; border: 1px solid var(--border); box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); }
+        .nav-item { padding: 14px 18px; cursor: pointer; border-radius: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; color: #94a3b8; font-weight: 600; font-size: 14px; }
+        .nav-item.active { background: var(--accent); color: white; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; margin-bottom: 25px; }
+        .stat-card { padding: 35px; border-radius: 28px; color: white; }
+        .rev-card { background: linear-gradient(135deg, #0f172a, #334155); }
+        .prof-card { background: linear-gradient(135deg, #10b981, #059669); }
+
+        /* Chart Card */
+        .analytics-card { margin-bottom: 40px; height: 350px; position: relative; }
+
+        /* Sales Boxes */
+        .history-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        @media (max-width: 1200px) { .history-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 650px) { .history-grid { grid-template-columns: 1fr; } }
+        .sale-box { background: var(--card); border-radius: 20px; border: 1px solid var(--border); padding: 22px; display: flex; flex-direction: column; height: 100%; animation: popIn 0.4s var(--spring); }
+        .sale-box:hover { transform: translateY(-5px); border-color: var(--accent); }
+
+        /* Buttons */
+        input, select { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--border); outline: none; background: var(--bg); color: var(--text); }
+        .btn { padding: 14px 22px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; overflow: hidden; }
+        .btn:active { transform: scale(0.94); }
+        .btn-primary { background: var(--accent); color: white; background: linear-gradient(90deg, #3b82f6, #2563eb, #3b82f6); background-size: 200% 100%; }
+        .btn-primary:hover { animation: shimmer 2s infinite linear; }
+
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; margin-left: auto; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .hidden { display: none !important; }
+
+        /* Print Style */
+        #invoice-print { display: none; padding: 40px; background: white !important; color: black !important; }
+        @media print { body * { visibility: hidden; } #invoice-print, #invoice-print * { visibility: visible; } #invoice-print { display: block !important; position: absolute; top: 0; left: 0; width: 100%; } }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div id="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+        <div class="confirm-modal" style="background: var(--card); color: var(--text); padding: 35px; border-radius: 24px; width: 100%; max-width: 380px; text-align: center; animation: popIn 0.3s var(--spring);">
+            <div id="modal-icon" style="font-size: 45px; margin-bottom: 15px;"></div>
+            <h3 id="modal-title">Confirm</h3>
+            <p id="modal-text" style="color: #64748b; font-size: 14px; margin-bottom: 25px;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="flex:1; background: var(--border);" onclick="closeModal()">Cancel</button>
+                <button id="modal-confirm-btn" class="btn" style="flex:1;"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="auth-container">
+        <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #0f172a; padding: 20px;">
+            <div class="card" style="width: 100%; max-width: 380px; text-align: center; animation: popIn 0.5s var(--spring);">
+                <h1 style="font-family: 'Playfair Display'; margin-bottom: 30px; font-size: 32px; color: #0f172a">Silver Leafs</h1>
+                <input type="email" id="login-email" placeholder="Email">
+                <input type="password" id="login-password" placeholder="Password" style="margin-top:10px; margin-bottom:25px;">
+                <button class="btn btn-primary" style="width:100%" onclick="login()">Enter Suite</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-layout" class="hidden">
+        <div class="mobile-header">
+            <h1>Silver Leafs</h1>
+            <div style="width:35px; height:35px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; color:white; cursor:pointer" onclick="toggleProfileMenu()">A</div>
+            <div class="profile-popover" id="popover-mobile">
+                <div class="pop-item" onclick="showPage('inventory'); toggleProfileMenu();"><i class="fas fa-boxes-stacked"></i> Inventory</div>
+                <div class="pop-item"><i class="fas fa-moon"></i> Dark Mode <label class="switch"><input type="checkbox" class="dark-check" onchange="toggleDark(this)"><span class="slider"></span></label></div>
+                <div class="pop-item" style="color:var(--danger)" onclick="askConfirm('logout')"><i class="fas fa-sign-out-alt"></i> Sign Out</div>
+            </div>
+        </div>
+
+        <aside>
+            <div class="logo">Silver Leafs</div>
+            <nav style="flex-grow: 1;">
+                <div class="nav-item active" onclick="showPage('dashboard', this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+                <div class="nav-item" onclick="showPage('billing', this)"><i class="fas fa-file-invoice"></i> Invoices</div>
+                <div class="nav-item" onclick="showPage('history', this)"><i class="fas fa-history"></i> Sales History</div>
+            </nav>
+            <div class="profile-hub">
+                <div class="profile-popover" id="popover-desktop">
+                    <div class="pop-item" onclick="showPage('inventory'); toggleProfileMenu();"><i class="fas fa-boxes-stacked"></i> Inventory</div>
+                    <div class="pop-item"><i class="fas fa-moon"></i> Dark Mode <label class="switch"><input type="checkbox" class="dark-check" onchange="toggleDark(this)"><span class="slider"></span></label></div>
+                    <div class="pop-item" style="color:var(--danger)" onclick="askConfirm('logout')"><i class="fas fa-sign-out-alt"></i> Sign Out</div>
+                </div>
+                <div class="profile-btn" onclick="toggleProfileMenu()">
+                    <div style="width:35px; height:35px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; color:white">A</div>
+                    <span style="font-size:14px; font-weight:700;">Account</span>
+                    <i class="fas fa-chevron-up" style="margin-left:auto; opacity:0.5; font-size:10px"></i>
+                </div>
+            </div>
+        </aside>
+
+        <nav class="mobile-nav">
+            <div onclick="showPage('dashboard', this)" style="text-align:center"><i class="fas fa-home" style="font-size:20px; color:var(--accent)"></i><p style="font-size:10px">Home</p></div>
+            <div onclick="showPage('billing', this)" style="text-align:center"><i class="fas fa-plus-circle" style="font-size:20px"></i><p style="font-size:10px">Bill</p></div>
+            <div onclick="showPage('history', this)" style="text-align:center"><i class="fas fa-receipt" style="font-size:20px"></i><p style="font-size:10px">Sales</p></div>
+        </nav>
+
+        <main>
+            <div id="page-dashboard" class="page">
+                <div class="stats-grid">
+                    <div class="stat-card rev-card"><small>TOTAL REVENUE</small><h1 id="st-rev">₹0</h1></div>
+                    <div class="stat-card prof-card"><small>NET PROFIT</small><h1 id="st-prof">₹0</h1></div>
+                </div>
+                
+                <div class="card analytics-card">
+                    <h3 style="margin-bottom: 20px;">Profit Growth Analytics</h3>
+                    <canvas id="profitChart"></canvas>
+                </div>
+
+                <h3>Live Inventory</h3>
+                <div id="dash-stock-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; margin-top:15px;"></div>
+            </div>
+
+            <div id="page-billing" class="page hidden">
+                <div class="card" style="max-width: 800px; margin: auto;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px;">
+                        <div style="grid-column: 1/-1;"><label>Search Phone</label><input type="number" id="bill-phone" oninput="handleAutoFill(this.value)"></div>
+                        <input id="bill-name" placeholder="Name"><input id="bill-shop" placeholder="Business Name">
+                        <div style="grid-column: 1/-1;"><input id="bill-address" placeholder="Full Address"></div>
+                        <select id="bill-prod" onchange="updateCalc()"></select><input type="number" id="bill-qty" placeholder="Qty" oninput="updateCalc()">
+                    </div>
+                    <div style="background: var(--bg); padding: 25px; border-radius: 20px; margin: 25px 0; text-align: center;"><h1 id="bill-total-disp" style="color: var(--accent); font-size: 42px; font-weight: 800;">₹0</h1></div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" style="flex: 2;" onclick="saveBill(true)"><i class="fas fa-print"></i> Save & Print</button>
+                        <button class="btn" style="flex: 1; background: var(--border);" onclick="saveBill(false)">Save Only</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-history" class="page hidden">
+                <div style="display: flex; gap: 10px; margin-bottom: 30px;">
+                    <input type="number" id="hist-search" placeholder="Search phone..." style="flex:1" oninput="handleSearch()">
+                    <button class="btn btn-primary" onclick="handleSearch()"><i class="fas fa-search"></i> Search</button>
+                    <button class="btn" onclick="syncData()" style="background:var(--border)"><i class="fas fa-sync-alt"></i></button>
+                </div>
+                <div id="hist-list" class="history-grid"></div>
+            </div>
+
+            <div id="page-inventory" class="page hidden">
+                <div class="card" style="margin-bottom: 25px;">
+                    <h3>Add Product</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top:15px;">
+                        <input id="inv-name" placeholder="Name"><input id="inv-buy" type="number" placeholder="Buy"><input id="inv-sell" type="number" placeholder="Sell"><input id="inv-stock" type="number" placeholder="Stock">
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="addStock()">Register Item</button>
+                </div>
+                <div id="inv-list-container" class="history-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="invoice-print">
+        <div style="display: flex; justify-content: space-between; border-bottom: 4px solid #000; padding-bottom: 20px; margin-bottom: 30px;">
+            <div>
+                <h1 style="font-family:'Playfair Display'; font-size: 38px;">SILVER LEAFS</h1>
+                <p style="text-transform: uppercase; font-weight: 800; letter-spacing: 2px; font-size: 12px;">Premium Vark Sheets Enterprise</p>
+                <p style="font-size: 13px;">Industrial Estate, New Delhi | Tel: +91 9876543210</p>
+            </div>
+            <div style="text-align: right;">
+                <h2 style="font-size: 24px;">TAX INVOICE</h2>
+                <p>Inv No: <span id="p-id" style="font-weight:700"></span></p>
+                <p>Date: <span id="p-date" style="font-weight:700"></span></p>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-bottom: 30px;">
+            <div style="border-left: 4px solid #000; padding-left: 15px;">
+                <h4>BILLED TO:</h4>
+                <p id="p-name" style="font-weight:700; font-size:18px"></p>
+                <p id="p-shop" style="font-weight:700"></p>
+                <p id="p-addr" style="font-size: 13px;"></p>
+                <p>Phone: <span id="p-phone"></span></p>
+            </div>
+            <div style="text-align: right;">
+                <h4>SUPPLIER:</h4>
+                <p><strong>SILVER LEAFS DISTRIBUTION</strong></p>
+                <p>GSTIN: 07AAAAA0000A1Z5</p>
+                <p style="color: green; font-weight: 800;">PAYMENT: PAID</p>
+            </div>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 2px solid #000;">
+            <thead><tr style="background:#eee">
+                <th style="border:1px solid #000; padding:12px; text-align:left">SR#</th>
+                <th style="border:1px solid #000; padding:12px; text-align:left">DESCRIPTION</th>
+                <th style="border:1px solid #000; padding:12px; text-align:center">QTY</th>
+                <th style="border:1px solid #000; padding:12px; text-align:right">RATE</th>
+                <th style="border:1px solid #000; padding:12px; text-align:right">TOTAL</th>
+            </tr></thead>
+            <tbody><tr>
+                <td style="border:1px solid #000; padding:12px">01</td>
+                <td id="p-item" style="border:1px solid #000; padding:12px; font-weight:700"></td>
+                <td id="p-qty" style="border:1px solid #000; padding:12px; text-align:center"></td>
+                <td id="p-rate" style="border:1px solid #000; padding:12px; text-align:right"></td>
+                <td id="p-total" style="border:1px solid #000; padding:12px; text-align:right; font-weight:800"></td>
+            </tr></tbody>
+        </table>
+        <div style="text-align: right;"><div style="display: inline-block; border: 2px solid #000; padding: 15px 40px; background:#000; color:#fff"><h3 style="margin: 0;">GRAND TOTAL: <span id="p-grand"></span></h3></div></div>
+    </div>
+
+    <script>
+        const firebaseConfig = { apiKey: "AIzaSyCKIq0n-9Da2E5ApEGoiZNv0n5cuAXeoTc", authDomain: "silverleafs-df36e.firebaseapp.com", databaseURL: "https://silverleafs-df36e-default-rtdb.firebaseio.com", projectId: "silverleafs-df36e" };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth(), db = firebase.database();
+        let products = {}, sales = {}, customers = {}, profitChart = null;
+
+        function toggleProfileMenu() {
+            const isMob = window.innerWidth <= 900;
+            const pop = document.getElementById(isMob ? "popover-mobile" : "popover-desktop");
+            pop.style.display = pop.style.display === "flex" ? "none" : "flex";
+        }
+
+        function toggleDark(el) {
+            const isD = el.checked;
+            document.body.setAttribute("data-theme", isD ? "dark" : "light");
+            localStorage.setItem("theme", isD ? "dark" : "light");
+            document.querySelectorAll('.dark-check').forEach(c => c.checked = isD);
+            if(profitChart) updateChartStyle(isD);
+        }
+
+        window.onload = () => { if(localStorage.getItem("theme") === "dark") { document.body.setAttribute("data-theme", "dark"); document.querySelectorAll('.dark-check').forEach(c => c.checked = true); } };
+
+        function showPage(id, el) {
+            document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+            document.getElementById("page-"+id).classList.remove("hidden");
+            document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+            if(el) el.classList.add("active");
+            document.querySelectorAll(".profile-popover").forEach(p => p.style.display = "none");
+            window.scrollTo(0,0);
+        }
+
+        function askConfirm(type, id = null) {
+            const ov = document.getElementById("modal-overlay");
+            const btn = document.getElementById("modal-confirm-btn");
+            ov.style.display = "flex";
+            if(type === 'logout') {
+                document.getElementById("modal-icon").innerHTML = '<i class="fas fa-sign-out-alt" style="color:var(--accent)"></i>';
+                document.getElementById("modal-title").innerText = "Sign Out?";
+                document.getElementById("modal-text").innerText = "Confirm your session exit.";
+                btn.innerText = "Logout"; btn.className = "btn btn-primary"; btn.onclick = () => auth.signOut();
+            } else if(type === 'deleteSale') {
+                document.getElementById("modal-icon").innerHTML = '<i class="fas fa-trash" style="color:var(--danger)"></i>';
+                document.getElementById("modal-title").innerText = "Erase Invoice?";
+                document.getElementById("modal-text").innerText = "Cannot be undone.";
+                btn.innerText = "Delete"; btn.className = "btn btn-danger"; btn.onclick = () => { db.ref("invoices/"+id).remove(); closeModal(); };
+            } else if(type === 'deleteProd') {
+                document.getElementById("modal-icon").innerHTML = '<i class="fas fa-box-open" style="color:var(--danger)"></i>';
+                document.getElementById("modal-title").innerText = "Delete Item?";
+                document.getElementById("modal-text").innerText = "Stock will be lost.";
+                btn.innerText = "Remove"; btn.className = "btn btn-danger"; btn.onclick = () => { db.ref("inventory/"+id).remove(); closeModal(); };
+            }
+        }
+
+        function closeModal() { document.getElementById("modal-overlay").style.display = "none"; }
+        function login() { auth.signInWithEmailAndPassword(document.getElementById("login-email").value, document.getElementById("login-password").value).catch(e => alert(e.message)); }
+
+        auth.onAuthStateChanged(user => {
+            if (user) { document.getElementById("auth-container").classList.add("hidden"); document.getElementById("main-layout").classList.remove("hidden"); syncData(); }
+            else { document.getElementById("auth-container").classList.remove("hidden"); document.getElementById("main-layout").classList.add("hidden"); }
+        });
+
+        function syncData() {
+            db.ref("inventory").on("value", snap => {
+                products = snap.val() || {};
+                let dash = "", opts = '<option value="">Select Item</option>', list = "";
+                Object.keys(products).forEach(k => {
+                    const p = products[k];
+                    dash += `<div class="card" style="padding:15px; border-left:4px solid ${p.stock < 500 ? 'red' : 'green'}"><small>${p.name}</small><h3>${p.stock}</h3></div>`;
+                    opts += `<option value="${k}">${p.name}</option>`;
+                    list += `<div class="card sale-box" style="height:auto"><strong>${p.name}</strong><small>Stock: ${p.stock}</small><div style="font-size:12px; margin-top:8px">Buy: ₹${p.buy} | Sell: ₹${p.sell} | Profit: ₹${p.sell-p.buy}</div><button class="btn" style="color:red; background:rgba(255,0,0,0.05); margin-top:10px" onclick="askConfirm('deleteProd', '${k}')">Delete</button></div>`;
+                });
+                document.getElementById("dash-stock-grid").innerHTML = dash;
+                document.getElementById("bill-prod").innerHTML = opts;
+                document.getElementById("inv-list-container").innerHTML = list;
+            });
+            db.ref("invoices").on("value", snap => {
+                sales = snap.val() || {};
+                let rev = 0, prof = 0, html = "";
+                const chartData = {};
+                const keys = Object.keys(sales).sort((a,b) => (sales[b].timestamp || 0) - (sales[a].timestamp || 0));
+                keys.forEach(k => {
+                    const v = sales[k];
+                    rev += Number(v.total || 0); prof += Number(v.profit || 0);
+                    customers[v.phone] = v;
+                    
+                    // Analytics data prep
+                    const date = v.date;
+                    chartData[date] = (chartData[date] || 0) + Number(v.profit || 0);
+
+                    html += `<div class="sale-box" data-phone="${v.phone}">
+                        <div class="header" style="flex-direction:column; align-items:flex-start"><span class="cust-name">${v.name}</span><small style="font-weight:800; color:var(--accent); background:rgba(59,130,246,0.1); padding:2px 8px; border-radius:4px">${v.date}</small></div>
+                        <div class="details"><p><i class="fas fa-store"></i> ${v.shop || 'Retail'}</p><p><i class="fas fa-phone"></i> ${v.phone}</p><p><i class="fas fa-map-marker-alt"></i> ${v.address || 'N/A'}</p><strong>${v.prod}</strong>: x${v.qty}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:10px; margin-top:10px;"><h3>₹${Number(v.total).toLocaleString()}</h3><div style="display:flex; gap:5px;"><button class="btn" onclick="printInv('${k}')"><i class="fas fa-print"></i></button><button class="btn" style="color:red" onclick="askConfirm('deleteSale', '${k}')"><i class="fas fa-trash"></i></button></div></div>
+                    </div>`;
+                });
+                document.getElementById("st-rev").innerText = "₹" + rev.toLocaleString();
+                document.getElementById("st-prof").innerText = "₹" + prof.toLocaleString();
+                document.getElementById("hist-list").innerHTML = html;
+                updateAnalytics(chartData);
+            });
+        }
+
+        function updateAnalytics(data) {
+            const ctx = document.getElementById('profitChart').getContext('2d');
+            const sortedDates = Object.keys(data).reverse();
+            const values = sortedDates.map(d => data[d]);
+
+            if(profitChart) profitChart.destroy();
+
+            const isDark = document.body.getAttribute("data-theme") === "dark";
+            
+            profitChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Profit Trend (₹)',
+                        data: values,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: isDark ? '#1e293b' : '#f1f5f9' },
+                            ticks: { color: isDark ? '#94a3b8' : '#64748b' }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: isDark ? '#94a3b8' : '#64748b' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartStyle(isDark) {
+            profitChart.options.scales.y.grid.color = isDark ? '#1e293b' : '#f1f5f9';
+            profitChart.options.scales.y.ticks.color = isDark ? '#94a3b8' : '#64748b';
+            profitChart.options.scales.x.ticks.color = isDark ? '#94a3b8' : '#64748b';
+            profitChart.update();
+        }
+
+        function handleSearch() {
+            const q = document.getElementById("hist-search").value;
+            document.querySelectorAll(".sale-box").forEach(b => { if(b.dataset.phone) b.style.display = b.dataset.phone.includes(q) ? "flex" : "none"; });
+        }
+
+        function handleAutoFill(ph) { if(customers[ph]) { const c = customers[ph]; document.getElementById("bill-name").value = c.name; document.getElementById("bill-shop").value = c.shop || ""; document.getElementById("bill-address").value = c.address; } }
+
+        function updateCalc() {
+            const pId = document.getElementById("bill-prod").value;
+            const qty = Number(document.getElementById("bill-qty").value);
+            if(pId && qty) document.getElementById("bill-total-disp").innerText = "₹" + (products[pId].sell * qty).toLocaleString();
+        }
+
+        function saveBill(prnt) {
+            const pId = document.getElementById("bill-prod").value; const qty = Number(document.getElementById("bill-qty").value);
+            if(!pId || qty <= 0) return alert("Fill data");
+            const p = products[pId];
+            const bill = { timestamp: Date.now(), name: document.getElementById("bill-name").value || "Walk-in", phone: document.getElementById("bill-phone").value || "N/A", shop: document.getElementById("bill-shop").value, address: document.getElementById("bill-address").value, prod: p.name, qty: qty, total: p.sell * qty, profit: (p.sell - p.buy) * qty, date: new Date().toLocaleDateString('en-IN') };
+            db.ref("inventory/"+pId).update({ stock: p.stock - qty });
+            const ref = db.ref("invoices").push();
+            ref.set(bill).then(() => { if(prnt) printInv(ref.key); 
+                document.getElementById("bill-phone").value = ""; document.getElementById("bill-name").value = ""; document.getElementById("bill-shop").value = ""; document.getElementById("bill-address").value = ""; document.getElementById("bill-qty").value = ""; document.getElementById("bill-total-disp").innerText = "₹0";
+                showPage('history');
+            });
+        }
+
+        function printInv(id) {
+            const s = sales[id];
+            const total = Number(s.total); const qty = Number(s.qty);
+            document.getElementById("p-id").innerText = id.substring(1, 8).toUpperCase(); document.getElementById("p-date").innerText = s.date;
+            document.getElementById("p-name").innerText = s.name; document.getElementById("p-phone").innerText = s.phone;
+            document.getElementById("p-addr").innerText = s.address; document.getElementById("p-shop").innerText = s.shop || "-";
+            document.getElementById("p-item").innerText = s.prod; document.getElementById("p-qty").innerText = qty;
+            document.getElementById("p-rate").innerText = "₹" + (total/qty).toLocaleString();
+            document.getElementById("p-total").innerText = "₹" + total.toLocaleString();
+            document.getElementById("p-grand").innerText = "₹" + total.toLocaleString();
+            setTimeout(() => window.print(), 700);
+        }
+
+        function addStock() {
+            const d = { name: document.getElementById("inv-name").value, buy: Number(document.getElementById("inv-buy").value) || 0, sell: Number(document.getElementById("inv-sell").value) || 0, stock: Number(document.getElementById("inv-stock").value) || 0 };
+            if(d.name) db.ref("inventory").push(d).then(() => { document.getElementById("inv-name").value = ""; document.getElementById("inv-buy").value = ""; document.getElementById("inv-sell").value = ""; document.getElementById("inv-stock").value = ""; });
+        }
+    </script>
+</body>
+</html>
